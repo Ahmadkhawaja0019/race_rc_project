@@ -279,7 +279,7 @@ def load_models():
 
     models = {}
 
-    def _load(key, filename, label=None):
+    def _load(key, filename):
         path = MODELS_DIR / filename
         if path.exists():
             models[key] = joblib.load(path)
@@ -287,15 +287,15 @@ def load_models():
         else:
             print(f"  SKIP (not found): {filename}")
 
-    _load("lr",       "lr_model.pkl",         "Logistic Regression")
-    _load("svm",      "svm_model.pkl",         "LinearSVC (SVM)")
-    _load("nb",       "nb_model.pkl",          "ComplementNB")
-    _load("rf",       "rf_model.pkl",          "Random Forest")
-    _load("xgb",      "xgb_model.pkl",         "XGBoost")
-    _load("kmeans",   "kmeans_model.pkl",       "KMeans")
-    _load("gmm",      "gmm_model.pkl",          "GMM")
-    _load("lp",       "label_prop_model.pkl",   "LabelPropagation")
-    _load("ensemble", "ensemble_model.pkl",     "Ensemble (LR+NB)")
+    _load("lr",       "lr_model.pkl")
+    _load("svm",      "svm_model.pkl")
+    _load("nb",       "nb_model.pkl")
+    _load("rf",       "rf_model.pkl")
+    _load("xgb",      "xgb_model.pkl")
+    _load("kmeans",   "kmeans_model.pkl")
+    _load("gmm",      "gmm_model.pkl")
+    _load("lp",       "label_prop_model.pkl")
+    _load("ensemble", "ensemble_model.pkl")
 
     # SVD transformers needed for unsupervised models
     if "gmm" in models and (MODELS_DIR / "gmm_svd.pkl").exists():

@@ -84,7 +84,7 @@ try:
     from sklearn.feature_extraction.text import CountVectorizer
     from sklearn.metrics.pairwise import cosine_similarity
     from sklearn.preprocessing import normalize
-    from sklearn.metrics import f1_score, precision_score, recall_score, r2_score
+    from sklearn.metrics import f1_score, precision_score, recall_score
     from tqdm import tqdm
 except ImportError as e:
     print(f"\nMissing package: {e}")

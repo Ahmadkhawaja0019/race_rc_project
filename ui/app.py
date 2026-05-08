@@ -177,6 +177,23 @@ except ImportError as e:
     st.error(f"Missing package: {e}\n\nActivate your venv and run: pip install -r requirements.txt")
     st.stop()
 
+# ── Pickle compatibility: SoftVotingEnsemble must be importable here ──────────
+# ensemble_model.pkl was saved when this class lived in model_a_train.py.
+# Defining it here (at module level) lets joblib.load resolve the class correctly.
+class SoftVotingEnsemble:
+    """Averages predicted probabilities from LR and NB — no retraining needed."""
+    def __init__(self, models, names):
+        self.models = models
+        self.names  = names
+
+    def predict_proba(self, X):
+        probs = np.array([m.predict_proba(X) for m in self.models])
+        return probs.mean(axis=0)
+
+    def predict(self, X):
+        return np.argmax(self.predict_proba(X), axis=1)
+
+
 # ── Minimal text cleaner (same logic as preprocessing.py) ─────────────────────
 def _clean(text: str) -> str:
     text = str(text).lower()

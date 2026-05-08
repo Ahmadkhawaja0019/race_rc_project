@@ -349,7 +349,6 @@ def train_xgb(X_train, y_train, X_val, y_val, val_exp):
         n_estimators=200,
         max_depth=6,
         learning_rate=0.1,
-        use_label_encoder=False,
         eval_metric="logloss",
         n_jobs=-1,
         random_state=RANDOM_STATE,
@@ -623,7 +622,7 @@ def main():
     sp.save_npz(DATA_PROC / "X_val.npz", X_val)
     np.save(DATA_PROC / "y_val.npy", y_val)
     sp.save_npz(DATA_PROC / "X_test.npz", X_test)
-    np.save(DATA_PROC / "y_test.npy", val_exp["is_correct"].values)
+    np.save(DATA_PROC / "y_test.npy", test_exp["is_correct"].values)
     print("  Saved X_val.npz + y_val.npy + X_test.npz + y_test.npy")
 
     # ── Supervised training ───────────────────────────────────────────────
