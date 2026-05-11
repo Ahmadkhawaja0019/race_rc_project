@@ -4,3 +4,5 @@ models/
 __pycache__/
 data/processed/
 .claude/
+tests/
+report/

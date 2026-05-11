@@ -84,20 +84,27 @@ pip install -r requirements.txt
 venv\Scripts\activate
 
 # Step 1 — Preprocess the RACE dataset (~5 min)
-# Creates data/processed/ with cleaned and expanded CSVs
+# Loads a SINGLE train.csv and performs 80-10-10 stratified split (seed=42)
+# Creates data/processed/ with train/val/test cleaned and expanded CSVs
 python src/preprocessing.py
 
-# Step 2 — Train Model A: answer verification (~20–40 min on GPU, longer on CPU)
+# Step 2 — Train Model A: answer verification (~20–40 min on CPU)
 # Trains LR, SVM, NB, RF, XGBoost, KMeans, GMM, LabelPropagation, Ensemble
 # Saves all models to models/model_a/traditional/
 python src/model_a_train.py
+
+# Step 2b — Train Question Generator (~10–15 min)
+# Builds TF-IDF sentence vectorizer + LR ranker for template-based QG
+# Saves qg_tfidf.pkl, qg_ranker.pkl to models/model_a/traditional/
+python src/model_a_generate.py
 
 # Step 3 — Train Model B: distractors + hints (~10–15 min)
 # Trains Word2Vec, builds frequency table, saves to models/model_b/traditional/
 python src/model_b_train.py
 
-# Step 4 — Evaluate all models on test set + run GridSearchCV (~5 min)
-# Saves evaluation_results.csv and confusion matrix PNGs to data/processed/
+# Step 4 — Evaluate all models on test set + run GridSearchCV (~10 min)
+# Saves evaluation_results.csv, qg_metrics.csv (BLEU/ROUGE/METEOR),
+# benchmark_comparison.csv (vs BERT/T5), and confusion matrix PNGs
 python src/evaluate.py
 
 # Step 5 — Launch the Streamlit web app
@@ -152,10 +159,10 @@ The app will open automatically at `http://localhost:8501`
 
 | Screen | What it does |
 |--------|-------------|
-| 📝 Article Input | Paste an article, question, and 4 options — click Analyse |
-| ❓ Quiz View | See all 4 options with confidence bars; predicted answer highlighted |
-| 💡 Hints Panel | 3 graduated hints + 3 distractor keywords |
-| 📊 Developer Dashboard | Model comparison table, confusion matrices, GridSearchCV heatmap |
+| 📝 Article Input | Paste ONLY a reading passage → click **Generate Quiz** → question + answer + distractors + hints all generated automatically |
+| ❓ Quiz | Select from 4 shuffled options → click **Check Answer** → green (Correct! Well done.) or red (Incorrect. The correct answer was: …) |
+| 💡 Hints | 3 collapsible hints (Hint 1 = vague, Hint 3 = near-explicit); **Reveal Answer** button appears only after all 3 hints are checked |
+| 📊 Developer Dashboard | Verification metrics, BLEU/ROUGE/METEOR QG metrics, benchmark vs BERT/T5, confusion matrices (with per-class P/R), GridSearchCV heatmap |
 
 ---
 

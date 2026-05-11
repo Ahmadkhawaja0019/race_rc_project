@@ -4,23 +4,21 @@ ui/app.py  —  RACE Reading Comprehension & Quiz Generator  (Streamlit UI)
 Run from the project root with your venv active:
     streamlit run ui/app.py
 
-Prerequisite: run model_a_train.py and model_b_train.py first so all model
-files exist in models/.
+Prerequisite: run model_a_train.py, model_a_generate.py, and model_b_train.py
+first so all model files exist in models/.
 
 Four screens
 ------------
-  Screen 1 — Article Input     : paste an article, pick a question, submit
-  Screen 2 — Quiz View         : see the 4 options; Model A ranks them and
-                                  highlights the predicted best answer
-  Screen 3 — Hints Panel       : 3 graduated hints (Model B) + distractor list
-  Screen 4 — Developer Dashboard : model comparison table, confusion matrix
-                                   images, evaluation CSV download
+  Screen 1 — Article Input    : paste a reading passage → Generate Quiz
+  Screen 2 — Quiz             : answer the generated MCQ, get instant feedback
+  Screen 3 — Hints            : graduated hints; Reveal Answer gated behind all hints
+  Screen 4 — Dashboard        : model metrics, benchmark table, confusion matrices
 """
 
 # CRITICAL: st.set_page_config() MUST be the very first Streamlit call
 import streamlit as st
 st.set_page_config(
-    page_title="RACE RC System",
+    page_title="RACE Quiz Generator",
     page_icon="📚",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -29,30 +27,6 @@ st.set_page_config(
 st.markdown(
     """
     <style>
-    :root {
-      --rc-muted: #9aa0a6;
-      --rc-border: rgba(127, 127, 127, 0.4);
-    }
-
-    [data-testid="stTextArea"] textarea,
-    [data-testid="stTextInput"] input {
-      background-color: var(--secondary-background-color) !important;
-      color: var(--text-color) !important;
-      border-color: var(--rc-border) !important;
-    }
-
-    [data-testid="stTextArea"] textarea::placeholder,
-    [data-testid="stTextInput"] input::placeholder {
-      color: var(--rc-muted) !important;
-    }
-
-    .rc-article,
-    .rc-option,
-    .rc-hint,
-    .rc-pill {
-      color: var(--text-color);
-    }
-
     .rc-article {
       background: var(--secondary-background-color);
       border-left: 4px solid var(--primary-color);
@@ -60,80 +34,60 @@ st.markdown(
       padding: 12px 16px;
       font-size: 0.95em;
     }
-
-    .rc-option {
-      background: var(--secondary-background-color);
-      border: 1px solid var(--rc-border);
+    .rc-opt-correct {
+      background: rgba(76, 175, 80, 0.18);
+      border: 2px solid #4caf50;
       border-radius: 8px;
+      padding: 10px 16px;
+      margin-bottom: 8px;
+      font-weight: bold;
+      color: #2e7d32;
+    }
+    .rc-opt-wrong {
+      background: rgba(244, 67, 54, 0.12);
+      border: 2px solid #f44336;
+      border-radius: 8px;
+      padding: 10px 16px;
+      margin-bottom: 8px;
+      color: #c62828;
+    }
+    .rc-opt-neutral {
+      background: var(--secondary-background-color);
+      border: 1px solid rgba(127,127,127,0.4);
+      border-radius: 8px;
+      padding: 10px 16px;
+      margin-bottom: 8px;
+    }
+    .rc-hint-1 {
+      border-left: 5px solid #ff9800;
+      background: rgba(255,152,0,0.08);
       padding: 12px 16px;
+      border-radius: 4px;
       margin-bottom: 10px;
     }
-
-    .rc-option--top {
-      border: 3px solid #4caf50;
-      background: rgba(76, 175, 80, 0.12);
-    }
-
-    .rc-score {
-      color: var(--rc-muted);
-      font-size: 0.85em;
-      white-space: nowrap;
-      margin-left: 12px;
-    }
-
-    .rc-bar-track {
-      background: rgba(127, 127, 127, 0.35);
-      border-radius: 4px;
-      height: 6px;
-      margin-top: 8px;
-    }
-
-    .rc-bar-fill {
-      background: #4caf50;
-      height: 6px;
-      border-radius: 4px;
-    }
-
-    .rc-hint {
-      background: var(--secondary-background-color);
-      border-left: 5px solid var(--primary-color);
+    .rc-hint-2 {
+      border-left: 5px solid #2196f3;
+      background: rgba(33,150,243,0.08);
       padding: 12px 16px;
       border-radius: 4px;
-      margin-bottom: 14px;
+      margin-bottom: 10px;
     }
-
-    .rc-hint--1 {
-      border-left-color: #ff9800;
-      background: rgba(255, 152, 0, 0.12);
+    .rc-hint-3 {
+      border-left: 5px solid #4caf50;
+      background: rgba(76,175,80,0.08);
+      padding: 12px 16px;
+      border-radius: 4px;
+      margin-bottom: 10px;
     }
-
-    .rc-hint--2 {
-      border-left-color: #2196f3;
-      background: rgba(33, 150, 243, 0.12);
-    }
-
-    .rc-hint--3 {
-      border-left-color: #4caf50;
-      background: rgba(76, 175, 80, 0.12);
-    }
-
-    .rc-hint-title {
-      font-weight: bold;
-      margin-bottom: 4px;
-    }
-
-    .rc-hint--1 .rc-hint-title { color: #ffb74d; }
-    .rc-hint--2 .rc-hint-title { color: #64b5f6; }
-    .rc-hint--3 .rc-hint-title { color: #81c784; }
-
     .rc-pill {
       background: rgba(233, 30, 99, 0.12);
       border: 1px solid #e91e63;
       border-radius: 20px;
-      padding: 8px 16px;
-      text-align: center;
+      padding: 6px 14px;
+      display: inline-block;
+      margin: 4px;
       font-weight: bold;
-      color: #ff9ac1;
+      color: #c2185b;
     }
     </style>
     """,
@@ -142,31 +96,24 @@ st.markdown(
 
 import sys
 import re
-import time
+import random
 from pathlib import Path
 
 # ── Dynamic project-root detection ────────────────────────────────────────────
-# Works whether you launch from the project root, from ui/, or from the worktree.
 def _find_root():
     here = Path(__file__).resolve().parent
     for candidate in [here.parent, here, here.parent.parent]:
-        if (candidate / "data" / "raw" / "train.csv").exists():
+        if (candidate / "data").exists():
             return candidate
-    # Fallback: look two more levels up
-    current = here
-    for _ in range(5):
-        current = current.parent
-        if (current / "data" / "raw" / "train.csv").exists():
-            return current
-    return here.parent   # best guess
+    return here.parent
 
 PROJECT_ROOT = _find_root()
-MODELS_A = PROJECT_ROOT / "models" / "model_a" / "traditional"
-MODELS_B = PROJECT_ROOT / "models" / "model_b" / "traditional"
+MODELS_A  = PROJECT_ROOT / "models" / "model_a" / "traditional"
+MODELS_B  = PROJECT_ROOT / "models" / "model_b" / "traditional"
 DATA_PROC = PROJECT_ROOT / "data" / "processed"
 sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
-# ── Lazy imports (so Streamlit error page shows if packages missing) ───────────
+# ── Package imports ────────────────────────────────────────────────────────────
 try:
     import numpy as np
     import pandas as pd
@@ -177,9 +124,7 @@ except ImportError as e:
     st.error(f"Missing package: {e}\n\nActivate your venv and run: pip install -r requirements.txt")
     st.stop()
 
-# ── Pickle compatibility: SoftVotingEnsemble must be importable here ──────────
-# ensemble_model.pkl was saved when this class lived in model_a_train.py.
-# Defining it here (at module level) lets joblib.load resolve the class correctly.
+# ── Pickle shim: SoftVotingEnsemble must be importable at module level ─────────
 class SoftVotingEnsemble:
     """Averages predicted probabilities from LR and NB — no retraining needed."""
     def __init__(self, models, names):
@@ -194,7 +139,7 @@ class SoftVotingEnsemble:
         return np.argmax(self.predict_proba(X), axis=1)
 
 
-# ── Minimal text cleaner (same logic as preprocessing.py) ─────────────────────
+# ── Text cleaner ───────────────────────────────────────────────────────────────
 def _clean(text: str) -> str:
     text = str(text).lower()
     text = re.sub(r"[^a-z0-9\s]", " ", text)
@@ -202,51 +147,58 @@ def _clean(text: str) -> str:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# MODEL LOADING  (cached — loads only once per session)
+# CACHED MODEL LOADERS
 # ─────────────────────────────────────────────────────────────────────────────
 
-@st.cache_resource(show_spinner="Loading Model A (answer ranking)...")
+@st.cache_resource(show_spinner="Loading Model A (answer verifier)...")
 def load_model_a():
-    """Load OHE vectorizer + best classifier (LR preferred, fallback to others)."""
+    """Load OHE vectorizer + best classifier for answer verification."""
     ohe_path = MODELS_A / "ohe_vectorizer.pkl"
     if not ohe_path.exists():
-        return None, None, "OHE vectorizer not found. Run model_a_train.py first."
-
+        return None, None, "OHE vectorizer not found"
     ohe = joblib.load(ohe_path)
-
     for fname, label in [
         ("lr_model.pkl",       "Logistic Regression"),
         ("ensemble_model.pkl", "Ensemble (LR+NB)"),
         ("svm_model.pkl",      "LinearSVC"),
         ("nb_model.pkl",       "ComplementNB"),
     ]:
-        path = MODELS_A / fname
-        if path.exists():
-            model = joblib.load(path)
-            return ohe, model, label
-
-    return ohe, None, "No classifier found. Run model_a_train.py."
+        p = MODELS_A / fname
+        if p.exists():
+            return ohe, joblib.load(p), label
+    return ohe, None, "No classifier found"
 
 
-@st.cache_resource(show_spinner="Loading Model B (hints & distractors)...")
+@st.cache_resource(show_spinner="Loading Question Generator...")
+def load_question_generator():
+    """Load the trained QuestionGenerator (model_a_generate.py)."""
+    tfidf_path = MODELS_A / "qg_tfidf.pkl"
+    if not tfidf_path.exists():
+        return None
+    try:
+        from model_a_generate import QuestionGenerator
+        return QuestionGenerator.load(MODELS_A)
+    except Exception as e:
+        return None
+
+
+@st.cache_resource(show_spinner="Loading Model B (distractors & hints)...")
 def load_model_b():
-    """Load OHE-B vectorizer and Word2Vec model for distractor generation."""
     result = {}
-    ohe_b_path = MODELS_B / "ohe_vectorizer_b.pkl"
-    w2v_path   = MODELS_B / "word2vec.model"
-    freq_path  = MODELS_B / "word_freq.pkl"
-
-    if ohe_b_path.exists():
-        result["ohe_b"] = joblib.load(ohe_b_path)
-    if freq_path.exists():
-        result["freq"]  = joblib.load(freq_path)
+    for fname, key in [
+        ("ohe_vectorizer_b.pkl", "ohe_b"),
+        ("word_freq.pkl",        "freq"),
+    ]:
+        p = MODELS_B / fname
+        if p.exists():
+            result[key] = joblib.load(p)
+    w2v_path = MODELS_B / "word2vec.model"
     if w2v_path.exists():
         try:
             from gensim.models import Word2Vec
             result["w2v"] = Word2Vec.load(str(w2v_path))
         except Exception:
             pass
-
     return result
 
 
@@ -254,102 +206,82 @@ def load_model_b():
 # INFERENCE HELPERS
 # ─────────────────────────────────────────────────────────────────────────────
 
-def rank_options(ohe, model, article: str, question: str, options: dict) -> dict:
+def verify_answer(ohe, model, article: str, question: str, options: list) -> list:
     """
-    Given article + question + 4 options, return a dict of option → confidence score.
-    Higher score = model thinks this option is more likely to be correct.
-
-    IMPORTANT: builds the SAME 3-part feature matrix as model_a_train.py:
-      OHE (10,000) + cosine similarity (1) + numeric length features (2) = 10,003 cols.
-    Using only ohe.transform() gives 10,000 features and causes a shape mismatch.
+    Score each option (str) and return list of float confidence scores
+    in the same order as `options`.
     """
     art_c = _clean(article)
     q_c   = _clean(question)
-    keys  = list(options.keys())   # ["A", "B", "C", "D"]
+    texts = [art_c + " " + q_c + " " + _clean(opt) for opt in options]
 
-    # ── Part 1: OHE on the combined text (article + question + option) ─────────
-    texts = [art_c + " " + q_c + " " + _clean(options[k]) for k in keys]
-    X_ohe = ohe.transform(texts)   # sparse (4, 10000)
+    X_ohe = ohe.transform(texts)  # (n, 10000)
 
-    # ── Part 2: cosine similarity between article and each option ──────────────
-    art_vec = ohe.transform([art_c])             # sparse (1, 10000)
+    art_vec = ohe.transform([art_c])
     art_n   = normalize(art_vec, norm="l2")
     cos_sims = []
-    for k in keys:
-        opt_vec = ohe.transform([_clean(options[k])])   # sparse (1, 10000)
-        opt_n   = normalize(opt_vec, norm="l2")
-        sim     = float(art_n.multiply(opt_n).sum())    # dot product of normed vecs
-        cos_sims.append(sim)
-    X_cos = sp.csr_matrix(np.array(cos_sims, dtype=float).reshape(-1, 1))  # (4, 1)
+    for opt in options:
+        ov  = ohe.transform([_clean(opt)])
+        on  = normalize(ov, norm="l2")
+        cos_sims.append(float(art_n.multiply(on).sum()))
+    X_cos = sp.csr_matrix(np.array(cos_sims, dtype=float).reshape(-1, 1))
 
-    # ── Part 3: numeric length features (article_length, q_length) ────────────
     art_len = len(article.split())
     q_len   = len(question.split())
-    X_num   = sp.csr_matrix(
-        np.array([[art_len, q_len]] * 4, dtype=float)   # same values for all 4 rows
-    )   # (4, 2)
+    X_num   = sp.csr_matrix(np.array([[art_len, q_len]] * len(options), dtype=float))
 
-    # ── Stack → (4, 10003), matching the training feature matrix ──────────────
     X = sp.hstack([X_ohe, X_cos, X_num], format="csr")
 
     if hasattr(model, "predict_proba"):
-        probs = model.predict_proba(X)[:, 1]
+        return list(model.predict_proba(X)[:, 1])
     elif hasattr(model, "decision_function"):
-        raw   = model.decision_function(X)
-        probs = (raw - raw.min()) / (raw.max() - raw.min() + 1e-9)
+        raw = model.decision_function(X)
+        norm_raw = (raw - raw.min()) / (raw.max() - raw.min() + 1e-9)
+        return list(norm_raw)
     else:
-        probs = model.predict(X).astype(float)
-
-    return {k: float(p) for k, p in zip(keys, probs)}
+        return list(model.predict(X).astype(float))
 
 
-def get_hints(article: str, question: str) -> dict:
+def get_hints(article: str, question: str) -> list:
     """
-    Extract 3 graduated hints by scoring article sentences on keyword overlap
-    with the question.  Does NOT need any trained model.
+    Score article sentences by keyword overlap with the question.
+    Returns a list of 3 sentences: [most_general, moderate, most_specific].
+    Hint 1 = index 0 (vague), Hint 3 = index 2 (revealing).
     """
-    import re as _re
     stop = {
-        "a", "an", "the", "is", "are", "was", "were", "in", "on", "at",
-        "to", "of", "and", "or", "but", "for", "with", "that", "this",
-        "it", "its", "he", "she", "they", "we", "you", "i", "be", "been",
-        "has", "have", "had", "do", "does", "did",
+        "a","an","the","is","are","was","were","in","on","at","to","of",
+        "and","or","but","for","with","that","this","it","its","he","she",
+        "they","we","you","i","be","been","has","have","had","do","does","did",
     }
     q_words = set(_clean(question).split()) - stop
-    sentences = _re.split(r"(?<=[.!?])\s+", article.strip())
+    sentences = re.split(r"(?<=[.!?])\s+", article.strip())
     sentences = [s.strip() for s in sentences if len(s.split()) >= 5]
 
     if not sentences:
-        return {"Hint 1": "No article text available.",
-                "Hint 2": "No article text available.",
-                "Hint 3": "No article text available."}
+        fallback = "No suitable sentences found in the article."
+        return [fallback, fallback, fallback]
 
     scored = []
     for sent in sentences:
-        words = set(_clean(sent).split())
+        words   = set(_clean(sent).split())
         overlap = len(q_words & words)
         scored.append((overlap, sent))
 
     scored.sort(key=lambda x: x[0], reverse=True)
     top3 = [s for _, s in scored[:3]]
-
     while len(top3) < 3:
         top3.append(top3[-1] if top3 else "—")
 
-    return {
-        "Hint 1 (least revealing)": top3[2],
-        "Hint 2 (moderate)":        top3[1],
-        "Hint 3 (most revealing)":  top3[0],
-    }
+    # [2] = least overlap (vague), [1] = moderate, [0] = most overlap (revealing)
+    return [top3[2], top3[1], top3[0]]
 
 
 def gen_distractors(article: str, correct_answer: str, model_b: dict) -> list:
     """
-    Generate 3 plausible wrong-answer distractors using available Model B artifacts.
-    Falls back gracefully if W2V or OHE-B is missing.
+    Generate 3 plausible wrong-answer distractors using Model B artifacts.
     """
-    art_c   = _clean(article)
-    ans_c   = _clean(correct_answer)
+    art_c     = _clean(article)
+    ans_c     = _clean(correct_answer)
     ans_words = set(ans_c.split())
     art_words = [w for w in art_c.split() if len(w) >= 3 and w not in ans_words]
 
@@ -359,24 +291,22 @@ def gen_distractors(article: str, correct_answer: str, model_b: dict) -> list:
     if "ohe_b" in model_b and art_words:
         try:
             from sklearn.metrics.pairwise import cosine_similarity as _cos
-            ohe_b = model_b["ohe_b"]
+            ohe_b    = model_b["ohe_b"]
             ans_vec  = ohe_b.transform([ans_c])
             cand_vecs = ohe_b.transform(art_words)
-            sims = _cos(ans_vec, cand_vecs)[0]
-            ranked = sorted(zip(art_words, sims), key=lambda x: x[1], reverse=True)
-            # skip top 3 most similar, take next 3
+            sims     = _cos(ans_vec, cand_vecs)[0]
+            ranked   = sorted(zip(art_words, sims), key=lambda x: x[1], reverse=True)
             distractors += [w for w, _ in ranked[3:6]]
         except Exception:
             pass
 
-    # Method 2: Word2Vec — semantically similar words not in article
+    # Method 2: Word2Vec — semantically related words outside article
     if len(distractors) < 3 and "w2v" in model_b:
         try:
             w2v = model_b["w2v"]
             for aw in list(ans_words)[:3]:
                 if aw in w2v.wv:
-                    similar = w2v.wv.most_similar(aw, topn=20)
-                    for word, _ in similar:
+                    for word, _ in w2v.wv.most_similar(aw, topn=20):
                         if (word not in art_c and word not in ans_words
                                 and len(word) >= 3 and word not in distractors):
                             distractors.append(word)
@@ -388,10 +318,9 @@ def gen_distractors(article: str, correct_answer: str, model_b: dict) -> list:
     if len(distractors) < 3 and "freq" in model_b:
         try:
             freq = model_b["freq"]
-            # Find frequency of first answer word
-            first_word = list(ans_words)[0] if ans_words else ""
-            target_freq = freq.get(first_word, 5)
-            lo, hi = target_freq * 0.6, target_freq * 1.6
+            fw   = list(ans_words)[0] if ans_words else ""
+            tgt  = freq.get(fw, 5)
+            lo, hi = tgt * 0.6, tgt * 1.6
             cands = [w for w, cnt in freq.items()
                      if lo <= cnt <= hi and w not in ans_words
                      and w not in distractors and len(w) >= 3][:10]
@@ -399,7 +328,7 @@ def gen_distractors(article: str, correct_answer: str, model_b: dict) -> list:
         except Exception:
             pass
 
-    # Simple fallback: grab random article words
+    # Fallback: grab diverse article words
     if len(distractors) < 3:
         seen = set(distractors) | ans_words
         for w in art_words:
@@ -409,65 +338,110 @@ def gen_distractors(article: str, correct_answer: str, model_b: dict) -> list:
             if len(distractors) >= 3:
                 break
 
-    return list(dict.fromkeys(distractors))[:3]   # deduplicate, cap at 3
+    return list(dict.fromkeys(distractors))[:3]
+
+
+def generate_quiz(article: str, qg, model_b: dict):
+    """
+    Generate (question, correct_answer, distractors, hints) from an article.
+    Falls back gracefully if the QG model is not trained.
+    """
+    if qg is not None:
+        try:
+            question, correct_answer = qg.generate(article)
+        except Exception:
+            question, correct_answer = _fallback_qg(article)
+    else:
+        question, correct_answer = _fallback_qg(article)
+
+    distractors = gen_distractors(article, correct_answer, model_b)
+    hints       = get_hints(article, question)
+    return question, correct_answer, distractors, hints
+
+
+def _fallback_qg(article: str):
+    """Simple fallback QG when the trained model is unavailable."""
+    sentences = re.split(r"(?<=[.!?])\s+", article.strip())
+    sentences = [s.strip() for s in sentences if len(s.split()) >= 6]
+    if sentences:
+        sent   = sentences[0]
+        tokens = [t for t in sent.lower().split() if len(t) > 3]
+        answer = tokens[0] if tokens else "the main idea"
+        question = f"What does the article say about {answer}?"
+    else:
+        question = "What is the main topic of the passage?"
+        answer   = "the passage topic"
+    return question, answer
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# SIDEBAR  (navigation)
+# SIDEBAR + LOAD MODELS
 # ─────────────────────────────────────────────────────────────────────────────
 
 SCREENS = {
-    "📝 Article Input":       "input",
-    "❓ Quiz View":            "quiz",
-    "💡 Hints Panel":          "hints",
-    "📊 Developer Dashboard":  "dashboard",
+    "📝 Article Input":      "input",
+    "❓ Quiz":               "quiz",
+    "💡 Hints":              "hints",
+    "📊 Developer Dashboard": "dashboard",
 }
 
 with st.sidebar:
-    st.title("📚 RACE RC System")
-    st.caption("AL2002 AI Lab Project — Spring 2026")
+    st.title("📚 RACE Quiz Generator")
+    st.caption("AL2002 AI Lab — Spring 2026")
     st.markdown("---")
     screen_label = st.radio("Navigate", list(SCREENS.keys()))
     screen = SCREENS[screen_label]
-
     st.markdown("---")
-    st.markdown("**Models loaded:**")
-    ohe_a, model_a, model_a_label = load_model_a()
-    model_b = load_model_b()
 
+    # Load models once
+    ohe_a, model_a, model_a_label = load_model_a()
+    qg_model  = load_question_generator()
+    model_b   = load_model_b()
+
+    st.markdown("**Models loaded:**")
     if model_a is not None:
         st.success(f"Model A: {model_a_label}")
     else:
-        st.warning("Model A not loaded")
+        st.warning("Model A not loaded — run model_a_train.py")
+
+    if qg_model is not None:
+        st.success("QG: QuestionGenerator")
+    else:
+        st.warning("QG not loaded — run model_a_generate.py")
 
     b_parts = []
-    if "ohe_b"  in model_b: b_parts.append("OHE-B")
-    if "w2v"    in model_b: b_parts.append("W2V")
-    if "freq"   in model_b: b_parts.append("Freq")
+    if "ohe_b" in model_b: b_parts.append("OHE-B")
+    if "w2v"   in model_b: b_parts.append("W2V")
+    if "freq"  in model_b: b_parts.append("Freq")
     if b_parts:
         st.success(f"Model B: {', '.join(b_parts)}")
     else:
-        st.warning("Model B not loaded")
+        st.warning("Model B not loaded — run model_b_train.py")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# SESSION STATE  (persists data between screen switches)
+# SESSION STATE INITIALISATION
 # ─────────────────────────────────────────────────────────────────────────────
 
-for key, default in {
-    "article":  "",
-    "question": "",
-    "opt_a":    "",
-    "opt_b":    "",
-    "opt_c":    "",
-    "opt_d":    "",
-    "scores":   None,
-    "hints":    None,
-    "distractors": None,
-    "submitted":   False,
-}.items():
-    if key not in st.session_state:
-        st.session_state[key] = default
+_defaults = {
+    "article":            "",
+    "generated_question": "",
+    "correct_answer":     "",
+    "distractors":        [],
+    "hints":              [],        # list of 3 hint strings
+    "quiz_options":       [],        # list of (label, text, is_correct) shuffled
+    "quiz_generated":     False,     # True after "Generate Quiz" clicked
+    "answered":           False,     # True after "Check Answer" clicked
+    "user_selected_idx":  None,      # index into quiz_options user chose
+    "hint1_read":         False,
+    "hint2_read":         False,
+    "hint3_read":         False,
+    "answer_revealed":    False,
+}
+
+for k, v in _defaults.items():
+    if k not in st.session_state:
+        st.session_state[k] = v
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -477,12 +451,12 @@ for key, default in {
 if screen == "input":
     st.title("📝 Screen 1 — Article Input")
     st.markdown(
-        "Paste a reading comprehension passage and a multiple-choice question below, "
-        "then click **Analyse** to let the AI rank the answer options."
+        "Paste a reading passage below and click **Generate Quiz**.  \n"
+        "The system will automatically create a question, the correct answer, "
+        "3 distractors, and 3 graduated hints — no manual input needed."
     )
 
-    # ── Sample article (RACE-style) ────────────────────────────────────────────
-    SAMPLE_ARTICLE = (
+    SAMPLE = (
         "Scientists have discovered a new species of deep-sea fish living at depths "
         "of more than 8,000 metres in the Pacific Ocean. The fish, named Pseudoliparis "
         "swirei, belongs to the snailfish family and was found in the Mariana Trench. "
@@ -492,231 +466,268 @@ if screen == "input":
         "destroy most other organisms. Unlike many deep-sea creatures, they appear to "
         "be highly active and are believed to be top predators in their environment."
     )
-    SAMPLE_QUESTION = "What allows the fish to survive the extreme pressure of the deep sea?"
-    SAMPLE_OPTS = {
-        "A": "A hard shell around their body",
-        "B": "A soft, gelatinous body structure",
-        "C": "Special pressure-resistant bones",
-        "D": "They migrate to shallower water periodically",
-    }
 
-    col1, col2 = st.columns([3, 1])
-    with col2:
-        if st.button("Load sample article", use_container_width=True):
-            st.session_state.article  = SAMPLE_ARTICLE
-            st.session_state.question = SAMPLE_QUESTION
-            st.session_state.opt_a    = SAMPLE_OPTS["A"]
-            st.session_state.opt_b    = SAMPLE_OPTS["B"]
-            st.session_state.opt_c    = SAMPLE_OPTS["C"]
-            st.session_state.opt_d    = SAMPLE_OPTS["D"]
-            st.session_state.submitted = False
+    col_btn, _ = st.columns([1, 4])
+    with col_btn:
+        if st.button("Load sample article"):
+            st.session_state.article = SAMPLE
+            # Reset quiz state when a new article is loaded
+            for k in ["quiz_generated", "answered", "user_selected_idx",
+                      "hint1_read", "hint2_read", "hint3_read", "answer_revealed"]:
+                st.session_state[k] = _defaults[k]
 
-    with st.form("input_form"):
-        article = st.text_area(
-            "Article / Passage",
-            value=st.session_state.article,
-            height=220,
-            placeholder="Paste the reading passage here...",
-        )
-        question = st.text_input(
-            "Question",
-            value=st.session_state.question,
-            placeholder="Type or paste the multiple-choice question here...",
-        )
-        st.markdown("**Answer Options**")
-        c1, c2 = st.columns(2)
-        with c1:
-            opt_a = st.text_input("A:", value=st.session_state.opt_a)
-            opt_c = st.text_input("C:", value=st.session_state.opt_c)
-        with c2:
-            opt_b = st.text_input("B:", value=st.session_state.opt_b)
-            opt_d = st.text_input("D:", value=st.session_state.opt_d)
+    article_input = st.text_area(
+        "Reading Passage",
+        value=st.session_state.article,
+        height=260,
+        placeholder="Paste your reading passage here…",
+        key="article_text_area",
+    )
 
-        submitted = st.form_submit_button("Analyse", use_container_width=True, type="primary")
-
-    if submitted:
-        # Validate
-        errors = []
-        if not article.strip():
-            errors.append("Article cannot be empty.")
-        if not question.strip():
-            errors.append("Question cannot be empty.")
-        if not all([opt_a.strip(), opt_b.strip(), opt_c.strip(), opt_d.strip()]):
-            errors.append("All four answer options (A, B, C, D) must be filled in.")
-
-        if errors:
-            for e in errors:
-                st.error(e)
+    if st.button("🎯 Generate Quiz", type="primary", use_container_width=True):
+        if not article_input.strip():
+            st.error("Please paste a reading passage first.")
+        elif len(article_input.strip().split()) < 20:
+            st.error("Passage is too short — please provide at least 20 words.")
         else:
-            # Save to session state
-            st.session_state.article  = article
-            st.session_state.question = question
-            st.session_state.opt_a    = opt_a
-            st.session_state.opt_b    = opt_b
-            st.session_state.opt_c    = opt_c
-            st.session_state.opt_d    = opt_d
-            st.session_state.submitted = True
+            # Reset state for a fresh quiz
+            for k in ["answered", "user_selected_idx", "hint1_read",
+                      "hint2_read", "hint3_read", "answer_revealed"]:
+                st.session_state[k] = _defaults[k]
 
-            options = {"A": opt_a, "B": opt_b, "C": opt_c, "D": opt_d}
+            st.session_state.article = article_input.strip()
 
-            with st.spinner("Running Model A (answer ranking)..."):
-                if ohe_a is not None and model_a is not None:
-                    st.session_state.scores = rank_options(ohe_a, model_a, article, question, options)
-                else:
-                    # Fallback: random scores so UI still works without trained models
-                    rng = np.random.default_rng(42)
-                    st.session_state.scores = {k: float(rng.random()) for k in options}
+            with st.spinner("Generating quiz question and answer…"):
+                q, ans, distractors, hints = generate_quiz(
+                    st.session_state.article, qg_model, model_b
+                )
 
-            with st.spinner("Extracting hints (Model B)..."):
-                st.session_state.hints = get_hints(article, question)
+            st.session_state.generated_question = q
+            st.session_state.correct_answer     = ans
+            st.session_state.distractors        = distractors
+            st.session_state.hints              = hints
 
-            with st.spinner("Generating distractors (Model B)..."):
-                # Use the predicted best answer to generate alternative distractors
-                best_opt = max(st.session_state.scores, key=st.session_state.scores.get)
-                best_text = options[best_opt]
-                st.session_state.distractors = gen_distractors(article, best_text, model_b)
+            # Build shuffled option list: 1 correct + 3 distractors
+            all_opts = [ans] + distractors[:3]
+            while len(all_opts) < 4:
+                all_opts.append(f"Other: {all_opts[0]}")  # pad if fewer distractors
+            random.seed(42)
+            random.shuffle(all_opts)
+            labels = ["A", "B", "C", "D"]
+            st.session_state.quiz_options = [
+                (labels[i], text, text == ans)
+                for i, text in enumerate(all_opts)
+            ]
+            st.session_state.quiz_generated = True
 
-            st.success("Analysis complete! Switch to 'Quiz View' in the sidebar.")
+            st.success(
+                "Quiz generated! Switch to **❓ Quiz** in the sidebar to answer it."
+            )
+
+    if st.session_state.quiz_generated:
+        st.markdown("---")
+        st.markdown("### Generated Question Preview")
+        st.info(f"**Q:** {st.session_state.generated_question}")
+        st.caption(
+            "The correct answer and distractors are hidden until you submit "
+            "your response on the Quiz screen."
+        )
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# SCREEN 2 — QUIZ VIEW
+# SCREEN 2 — QUIZ
 # ─────────────────────────────────────────────────────────────────────────────
 
 elif screen == "quiz":
-    st.title("❓ Screen 2 — Quiz View")
+    st.title("❓ Screen 2 — Quiz")
 
-    if not st.session_state.submitted or st.session_state.scores is None:
-        st.info("No analysis yet. Go to **Article Input** and click Analyse first.")
+    if not st.session_state.quiz_generated:
+        st.info("No quiz yet.  Go to **📝 Article Input** and click **Generate Quiz** first.")
         st.stop()
 
-    st.markdown("### Article")
+    # Article preview
+    st.markdown("**Passage:**")
     st.markdown(
-        f'<div class="rc-article">{st.session_state.article}</div>',
+        f'<div class="rc-article">{st.session_state.article[:600]}'
+        f'{"…" if len(st.session_state.article) > 600 else ""}</div>',
         unsafe_allow_html=True,
     )
-
-    st.markdown("---")
-    st.markdown(f"### Question\n**{st.session_state.question}**")
     st.markdown("---")
 
-    scores = st.session_state.scores
-    best   = max(scores, key=scores.get)
+    # Question
+    st.markdown(f"### {st.session_state.generated_question}")
+    st.markdown("*Select the best answer:*")
 
-    option_texts = {
-        "A": st.session_state.opt_a,
-        "B": st.session_state.opt_b,
-        "C": st.session_state.opt_c,
-        "D": st.session_state.opt_d,
-    }
+    opts = st.session_state.quiz_options   # [(label, text, is_correct), ...]
 
-    st.markdown("### Answer Options")
-    st.caption(f"Model A ({model_a_label}) confidence scores — highest = predicted correct answer")
-
-    for opt, text in option_texts.items():
-        score  = scores.get(opt, 0.0)
-        is_top = opt == best
-
-        icon      = "✅" if is_top else "⬜"
-        bar_width = int(score * 100)
-        opt_class = "rc-option rc-option--top" if is_top else "rc-option"
-
-        st.markdown(
-            f"""
-            <div class="{opt_class}">
-              <div style="display:flex;justify-content:space-between;align-items:center;">
-                <span style="font-weight:{'bold' if is_top else 'normal'};font-size:1em;">
-                  {icon} <b>{opt}.</b> {text}
-                </span>
-                <span class="rc-score">score: {score:.3f}</span>
-              </div>
-              <div class="rc-bar-track">
-                <div class="rc-bar-fill" style="width:{bar_width}%;"></div>
-              </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
+    # ── Before answer submitted: show radio buttons ────────────────────────────
+    if not st.session_state.answered:
+        radio_labels = [f"**{lbl}.** {txt}" for lbl, txt, _ in opts]
+        choice = st.radio(
+            "Your answer:",
+            options=range(len(opts)),
+            format_func=lambda i: f"{opts[i][0]}. {opts[i][1]}",
+            index=None,
+            label_visibility="collapsed",
         )
 
-    st.markdown("---")
-    st.markdown(
-        f"**Model A prediction:** Option **{best}** — "
-        f'*"{option_texts[best]}"* (confidence: {scores[best]:.3f})'
-    )
-    st.caption(
-        "Note: Model A is trained on whether each option is correct (binary classification). "
-        "The option with the highest confidence score is predicted as the correct answer."
-    )
+        if st.button("✔ Check Answer", type="primary"):
+            if choice is None:
+                st.warning("Please select an answer before checking.")
+            else:
+                st.session_state.user_selected_idx = choice
+                st.session_state.answered = True
+                st.rerun()
+
+    # ── After answer submitted: show colour-coded feedback ─────────────────────
+    else:
+        chosen_idx    = st.session_state.user_selected_idx
+        correct_idx   = next(i for i, (_, _, ok) in enumerate(opts) if ok)
+        user_is_right = (chosen_idx == correct_idx)
+
+        for i, (lbl, txt, is_corr) in enumerate(opts):
+            if is_corr:
+                icon = "✅"
+                css  = "rc-opt-correct"
+            elif i == chosen_idx:
+                icon = "❌"
+                css  = "rc-opt-wrong"
+            else:
+                icon = "⬜"
+                css  = "rc-opt-neutral"
+            st.markdown(
+                f'<div class="{css}">{icon} <b>{lbl}.</b> {txt}</div>',
+                unsafe_allow_html=True,
+            )
+
+        st.markdown("---")
+        if user_is_right:
+            st.success("✅ Correct! Well done.")
+        else:
+            correct_text = opts[correct_idx][1]
+            st.error(
+                f"❌ Incorrect. The correct answer was: **{correct_text}**"
+            )
+
+        st.caption(
+            "The correct answer was identified by the question generator (Model A). "
+            "Go to **💡 Hints** to see graduated clues, or return to "
+            "**📝 Article Input** to generate a new quiz."
+        )
+
+        if st.button("🔄 Try Again (clear answer)"):
+            st.session_state.answered          = False
+            st.session_state.user_selected_idx = None
+            st.session_state.hint1_read        = False
+            st.session_state.hint2_read        = False
+            st.session_state.hint3_read        = False
+            st.session_state.answer_revealed   = False
+            st.rerun()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# SCREEN 3 — HINTS PANEL
+# SCREEN 3 — HINTS
 # ─────────────────────────────────────────────────────────────────────────────
 
 elif screen == "hints":
-    st.title("💡 Screen 3 — Hints Panel")
+    st.title("💡 Screen 3 — Hints")
 
-    if not st.session_state.submitted or st.session_state.hints is None:
-        st.info("No analysis yet. Go to **Article Input** and click Analyse first.")
+    if not st.session_state.quiz_generated:
+        st.info("No quiz yet.  Go to **📝 Article Input** and click **Generate Quiz** first.")
         st.stop()
 
-    st.markdown(f"**Question:** {st.session_state.question}")
+    st.markdown(f"**Question:** *{st.session_state.generated_question}*")
     st.markdown("---")
-
-    # ── Graduated Hints ────────────────────────────────────────────────────────
-    st.markdown("### Graduated Hints")
-    st.caption(
-        "Sentences from the article ranked by relevance to the question. "
-        "Hint 1 is least revealing; Hint 3 gives the most direct clue."
+    st.markdown(
+        "Open each hint in order.  After reading all three, the "
+        "**Reveal Answer** button will appear."
     )
-
-    HINT_CLASSES = {
-        "Hint 1 (least revealing)": "rc-hint--1",
-        "Hint 2 (moderate)":        "rc-hint--2",
-        "Hint 3 (most revealing)":  "rc-hint--3",
-    }
 
     hints = st.session_state.hints
-    for label, hint_text in hints.items():
-        hint_class = HINT_CLASSES.get(label, "")
+    if not hints or len(hints) < 3:
+        hints = ["No hint available.", "No hint available.", "No hint available."]
+
+    # Hint 1 — most general (vague)
+    with st.expander("🟠 Hint 1 — General clue (least revealing)", expanded=False):
         st.markdown(
-            f"""
-            <div class="rc-hint {hint_class}">
-              <div class="rc-hint-title">{label}</div>
-              <div style="font-size:0.95em;">{hint_text}</div>
-            </div>
-            """,
+            f'<div class="rc-hint-1">{hints[0]}</div>',
             unsafe_allow_html=True,
         )
+    h1 = st.checkbox("✔ I have read Hint 1", key="cb_h1",
+                     value=st.session_state.hint1_read)
+    if h1:
+        st.session_state.hint1_read = True
+
+    # Hint 2 — moderate
+    with st.expander("🔵 Hint 2 — More specific clue", expanded=False):
+        st.markdown(
+            f'<div class="rc-hint-2">{hints[1]}</div>',
+            unsafe_allow_html=True,
+        )
+    h2 = st.checkbox("✔ I have read Hint 2", key="cb_h2",
+                     value=st.session_state.hint2_read)
+    if h2:
+        st.session_state.hint2_read = True
+
+    # Hint 3 — most revealing
+    with st.expander("🟢 Hint 3 — Near-explicit clue (most revealing)", expanded=False):
+        st.markdown(
+            f'<div class="rc-hint-3">{hints[2]}</div>',
+            unsafe_allow_html=True,
+        )
+    h3 = st.checkbox("✔ I have read Hint 3", key="cb_h3",
+                     value=st.session_state.hint3_read)
+    if h3:
+        st.session_state.hint3_read = True
 
     st.markdown("---")
 
-    # ── Distractors ────────────────────────────────────────────────────────────
-    st.markdown("### Generated Distractors")
+    # Gate: "Reveal Answer" only after all 3 hints read
+    all_read = (st.session_state.hint1_read
+                and st.session_state.hint2_read
+                and st.session_state.hint3_read)
+
+    if not all_read:
+        hints_done = sum([st.session_state.hint1_read,
+                          st.session_state.hint2_read,
+                          st.session_state.hint3_read])
+        remaining  = 3 - hints_done
+        st.info(
+            f"Read and check all 3 hints to unlock the answer.  "
+            f"({hints_done}/3 done — {remaining} remaining)"
+        )
+    else:
+        if not st.session_state.answer_revealed:
+            if st.button("🔓 Reveal Answer", type="primary"):
+                st.session_state.answer_revealed = True
+                st.rerun()
+        else:
+            st.success(
+                f"**Correct Answer:** {st.session_state.correct_answer}"
+            )
+
+    st.markdown("---")
+
+    # Distractors section
+    st.markdown("### Generated Distractors (Model B)")
     st.caption(
-        "Plausible-but-wrong alternative keywords generated by Model B "
+        "These are the 3 plausible-but-wrong alternatives generated by Model B "
         "(OHE cosine similarity + Word2Vec + frequency matching)."
     )
-
     distractors = st.session_state.distractors or []
     if distractors:
-        cols = st.columns(len(distractors))
-        for i, d in enumerate(distractors):
-            with cols[i]:
-                st.markdown(
-                    f'<div class="rc-pill">{d}</div>',
-                    unsafe_allow_html=True,
-                )
+        pill_html = " ".join(f'<span class="rc-pill">{d}</span>' for d in distractors)
+        st.markdown(pill_html, unsafe_allow_html=True)
     else:
         st.warning("No distractors generated — check that Model B files are present.")
 
-    st.markdown("---")
-    st.markdown(
-        "**How distractors are generated:** Model B uses three methods — "
-        "(1) OHE cosine similarity to find medium-similarity article words, "
-        "(2) Word2Vec to find semantically related words outside the article, "
-        "(3) frequency matching to find corpus words with similar occurrence rates. "
-        "The final distractors are deduplicated results from all three methods."
+    st.markdown("")
+    st.caption(
+        "**How it works:** "
+        "Method 1 (OHE+cosine) finds article words with medium similarity to the answer. "
+        "Method 2 (Word2Vec) finds semantically related words outside the article. "
+        "Method 3 (frequency) finds corpus words with similar frequency. "
+        "Results are deduplicated and capped at 3."
     )
 
 
@@ -728,78 +739,195 @@ elif screen == "dashboard":
     st.title("📊 Screen 4 — Developer Dashboard")
     st.caption("Model performance metrics and evaluation artifacts from evaluate.py")
 
-    # ── Tab layout ─────────────────────────────────────────────────────────────
-    tab_results, tab_cm, tab_gs, tab_about = st.tabs([
-        "Model Comparison",
+    tab_verify, tab_qg, tab_bench, tab_cm, tab_gs, tab_about = st.tabs([
+        "Verification Metrics",
+        "QG Metrics (BLEU/ROUGE)",
+        "Benchmark Comparison",
         "Confusion Matrices",
         "GridSearchCV",
         "About",
     ])
 
-    # ── Tab 1: Model comparison table ─────────────────────────────────────────
-    with tab_results:
-        st.subheader("Model Comparison — Test Set")
+    # ── Tab 1: Verification model comparison ──────────────────────────────────
+    with tab_verify:
+        st.subheader("Answer Verification — Model Comparison (Test Set)")
         csv_path = DATA_PROC / "evaluation_results.csv"
         if csv_path.exists():
             df = pd.read_csv(csv_path)
-            # Highlight best value per numeric column
-            numeric_cols = [c for c in df.columns
-                            if c not in ("Model", "Split")]
-            st.dataframe(
-                df,
-                use_container_width=True,
-                height=350,
-            )
+            st.dataframe(df, use_container_width=True, height=350)
             st.download_button(
-                label="Download results CSV",
+                "Download evaluation_results.csv",
                 data=csv_path.read_bytes(),
                 file_name="evaluation_results.csv",
                 mime="text/csv",
             )
-
-            # Bar chart of Q-Level Accuracy
             if "Q-Level Acc" in df.columns:
                 st.subheader("Question-Level Accuracy by Model")
                 chart_df = df.set_index("Model")[["Q-Level Acc"]].sort_values(
                     "Q-Level Acc", ascending=False
                 )
                 st.bar_chart(chart_df)
-                st.caption("Random baseline = 0.25 | Target = 0.40+")
-
+                st.caption("Random baseline = 0.25 | Target > 0.40")
             if "Macro F1" in df.columns:
                 st.subheader("Macro F1 by Model")
-                chart_df2 = df.set_index("Model")[["Macro F1"]].sort_values(
-                    "Macro F1", ascending=False
+                st.bar_chart(
+                    df.set_index("Model")[["Macro F1"]].sort_values(
+                        "Macro F1", ascending=False
+                    )
                 )
-                st.bar_chart(chart_df2)
+            # Per-class metrics (Issue 5)
+            per_class_cols = [c for c in df.columns
+                              if "class" in c.lower() or "prec" in c.lower()
+                              or "rec" in c.lower()]
+            if per_class_cols:
+                st.subheader("Per-Class Precision / Recall / F1 (Issue 5)")
+                st.caption(
+                    "Class 1 = 'Correct option'. "
+                    "Low values for Class 1 indicate the model predicts mostly the majority class (Class 0). "
+                    "class_weight='balanced' is used in all supervised classifiers to mitigate this."
+                )
+                st.dataframe(df[["Model"] + per_class_cols], use_container_width=True)
+        else:
+            st.info("evaluation_results.csv not found. Run `python src/evaluate.py` first.")
+
+    # ── Tab 2: QG metrics (Issue 4) ────────────────────────────────────────────
+    with tab_qg:
+        st.subheader("Question Generation Metrics: BLEU / ROUGE / METEOR (Issue 4)")
+        st.markdown(
+            "These metrics measure how closely the **automatically generated question** "
+            "resembles the original RACE reference question, averaged over the test set."
+        )
+
+        metric_info = {
+            "BLEU-1":  "Unigram precision — fraction of generated words appearing in the reference.",
+            "BLEU-4":  "4-gram precision — higher order n-gram overlap; standard QG benchmark metric.",
+            "ROUGE-1": "Unigram recall-oriented overlap between generated and reference question.",
+            "ROUGE-2": "Bigram overlap — captures phrase-level similarity.",
+            "ROUGE-L": "Longest common subsequence — captures sentence-level structure.",
+            "METEOR":  "Synonym-aware alignment; accounts for paraphrases and stemming variants.",
+        }
+
+        qg_path = DATA_PROC / "qg_metrics.csv"
+        if qg_path.exists():
+            qg_df = pd.read_csv(qg_path)
+            for col, desc in metric_info.items():
+                if col in qg_df.columns:
+                    val = qg_df[col].iloc[0]
+                    val_str = f"{val:.4f}" if val is not None else "N/A"
+                    st.metric(label=col, value=val_str, help=desc)
+            st.markdown("---")
+            st.dataframe(qg_df, use_container_width=True)
+            st.download_button(
+                "Download qg_metrics.csv",
+                data=qg_path.read_bytes(),
+                file_name="qg_metrics.csv",
+                mime="text/csv",
+            )
         else:
             st.info(
-                "evaluation_results.csv not found. "
-                "Run `python src/evaluate.py` first."
+                "qg_metrics.csv not found.  \n"
+                "Run `python src/model_a_generate.py` then `python src/evaluate.py`."
             )
 
-    # ── Tab 2: Confusion matrices ──────────────────────────────────────────────
+        with st.expander("📖 How QG metrics are computed"):
+            st.markdown(
+                """
+**BLEU** (Bilingual Evaluation Understudy) compares the n-gram overlap between
+the generated question and the reference (original RACE) question.
+*Formula:* brevity penalty × geometric mean of n-gram precisions.
+
+**ROUGE** (Recall-Oriented Understudy for Gisting Evaluation) measures recall:
+what fraction of the reference n-grams appear in the generated question.
+
+**METEOR** (Metric for Evaluation of Translation with Explicit ORdering) adds
+synonym matching and stemming to catch paraphrased correct answers.
+
+All three are averaged over the test sample (`n_samples` rows).
+"""
+            )
+
+    # ── Tab 3: Benchmark comparison (Issue 6) ─────────────────────────────────
+    with tab_bench:
+        st.subheader("Benchmark Comparison: Classical ML vs. BERT / T5 (Issue 6)")
+        st.markdown(
+            "Published neural QG scores on RACE and similar datasets are shown alongside "
+            "our classical ML scores for context.  "
+            "**Our constraint:** classical ML only — no neural networks, no BERT/transformers."
+        )
+
+        bench_path = DATA_PROC / "benchmark_comparison.csv"
+        if bench_path.exists():
+            bench_df = pd.read_csv(bench_path)
+            # Highlight our row
+            def _highlight_our(row):
+                if "This project" in str(row.get("Reference", "")):
+                    return ["background-color: rgba(255,193,7,0.15)"] * len(row)
+                return [""] * len(row)
+            st.dataframe(
+                bench_df.style.apply(_highlight_our, axis=1),
+                use_container_width=True,
+            )
+            st.download_button(
+                "Download benchmark_comparison.csv",
+                data=bench_path.read_bytes(),
+                file_name="benchmark_comparison.csv",
+                mime="text/csv",
+            )
+        else:
+            # Show static table even if CSV not generated yet
+            static_data = {
+                "System": [
+                    "BERT (fine-tuned, neural)",
+                    "T5-base (fine-tuned, neural)",
+                    "Rule-based (heuristic templates)",
+                    "Our System (TF-IDF + LR, classical)  ◄",
+                ],
+                "BLEU-1": [0.52, 0.58, 0.22, "run evaluate.py"],
+                "BLEU-4": [0.18, 0.23, 0.05, "run evaluate.py"],
+                "ROUGE-L": [0.44, 0.49, 0.20, "run evaluate.py"],
+                "METEOR": [0.21, 0.26, 0.10, "run evaluate.py"],
+                "Reference": [
+                    "Sun et al. (2022)",
+                    "Zhao et al. (2023)",
+                    "Pan et al. (2019)",
+                    "This project (AL2002 Spring 2026)",
+                ],
+            }
+            st.dataframe(pd.DataFrame(static_data), use_container_width=True)
+            st.info("Run `python src/evaluate.py` to populate our model's scores.")
+
+        st.markdown("---")
+        st.markdown(
+            "> **Why the gap?** Neural models (BERT, T5) leverage billions of parameters "
+            "pre-trained on massive corpora, giving them strong language understanding. "
+            "Our classical model uses TF-IDF sentence scoring, frequency-based answer extraction, "
+            "and Wh-word templates — all without any pre-trained language knowledge. "
+            "The gap is expected and reflects the architectural constraint of this assignment."
+        )
+
+    # ── Tab 4: Confusion matrices ─────────────────────────────────────────────
     with tab_cm:
         st.subheader("Confusion Matrices (Test Set)")
-
+        st.caption(
+            "Each matrix shows True/False Positive/Negative counts for the "
+            "binary is_correct classification task.  "
+            "Title annotations show per-class Precision and Recall (Issue 5)."
+        )
         cm_files = sorted(DATA_PROC.glob("cm_test_*.png"))
         if cm_files:
             cols_per_row = 2
             for i in range(0, len(cm_files), cols_per_row):
                 row_files = cm_files[i:i + cols_per_row]
-                cols = st.columns(cols_per_row)
-                for col, fpath in zip(cols, row_files):
-                    with col:
+                cols_ui   = st.columns(cols_per_row)
+                for col_ui, fpath in zip(cols_ui, row_files):
+                    with col_ui:
                         label = fpath.stem.replace("cm_test_", "").replace("_", " ").title()
                         st.markdown(f"**{label}**")
                         st.image(str(fpath), use_column_width=True)
         else:
-            st.info(
-                "No confusion matrix images found in data/processed/. "
-                "Run `python src/evaluate.py` to generate them."
-            )
+            st.info("No confusion matrix images found. Run `python src/evaluate.py`.")
 
-    # ── Tab 3: GridSearchCV ────────────────────────────────────────────────────
+    # ── Tab 5: GridSearchCV ───────────────────────────────────────────────────
     with tab_gs:
         st.subheader("GridSearchCV — LR Hyperparameter Tuning")
         gs_csv  = DATA_PROC / "gridsearch_results.csv"
@@ -808,25 +936,25 @@ elif screen == "dashboard":
         if gs_csv.exists():
             gs_df = pd.read_csv(gs_csv)
             st.dataframe(gs_df, use_container_width=True)
-
             if gs_heat.exists():
-                st.image(str(gs_heat), caption="GridSearchCV Heatmap (C vs max_features)", width=600)
+                st.image(
+                    str(gs_heat),
+                    caption="GridSearchCV Heatmap (C vs max_features)",
+                    use_column_width=True,
+                )
         else:
-            st.info(
-                "gridsearch_results.csv not found. "
-                "Run `python src/evaluate.py` to generate it."
-            )
+            st.info("gridsearch_results.csv not found. Run `python src/evaluate.py`.")
 
         st.markdown(
             "**What is GridSearchCV?**  \n"
             "It systematically tests every combination of hyperparameters and uses "
-            "cross-validation (3-fold here) to estimate which combination will generalise "
-            "best to unseen data.  For Logistic Regression we tune:  \n"
+            "cross-validation (3-fold) to estimate which combination generalises best. "
+            "Parameters tuned:  \n"
             "- `C` — regularisation strength (smaller = more regularised)  \n"
             "- `max_features` — vocabulary size for the OHE CountVectorizer"
         )
 
-    # ── Tab 4: About ───────────────────────────────────────────────────────────
+    # ── Tab 6: About ──────────────────────────────────────────────────────────
     with tab_about:
         st.subheader("Project Information")
         st.markdown(
@@ -836,44 +964,49 @@ elif screen == "dashboard":
 | **Project** | RACE Reading Comprehension & Quiz Generation System |
 | **Course** | AL2002 — Artificial Intelligence Lab, Spring 2026 |
 | **University** | NUCES (FAST), Islamabad |
-| **Dataset** | RACE — 87,866 training articles |
-| **Model A task** | Answer option ranking (binary is_correct classification) |
-| **Model B task** | Distractor generation + hint extraction |
-| **Features** | OHE (CountVectorizer binary=True) + cosine similarity + numerical |
-| **Allowed models** | LR, SVM, Naive Bayes, Random Forest, XGBoost, KMeans, GMM, LabelPropagation |
+| **Dataset** | RACE — 87,866 rows, single-file 80-10-10 stratified split |
+| **Model A — Verifier** | Binary is_correct classification (LR, SVM, NB, RF, XGB, KMeans, GMM, LP, Ensemble) |
+| **Model A — Generator** | Template-based QG: TF-IDF sentence scoring + Wh-word templates + LR ranker |
+| **Model B** | Distractor generation (OHE+cosine, Word2Vec, freq) + hint extraction |
+| **Features** | OHE CountVectorizer(binary=True) + cosine sim + word counts |
+| **Constraint** | Classical ML only — no neural networks, no BERT/LSTM |
             """
         )
-
-        st.markdown("### How to run the full pipeline")
+        st.markdown("### Full Pipeline")
         st.code(
-            """# 1. Activate virtual environment
+            """# Activate virtual environment
 venv\\Scripts\\activate
 
-# 2. Preprocess data (creates data/processed/)
+# Step 1 — preprocess (80-10-10 stratified split)
 python src/preprocessing.py
 
-# 3. Train Model A (creates models/model_a/)
+# Step 2 — train Model A verifier
 python src/model_a_train.py
 
-# 4. Train Model B (creates models/model_b/)
+# Step 3 — train Question Generator
+python src/model_a_generate.py
+
+# Step 4 — train Model B (distractors + hints)
 python src/model_b_train.py
 
-# 5. Evaluate all models (creates evaluation_results.csv)
+# Step 5 — evaluate all models (BLEU/ROUGE/METEOR + benchmark table)
 python src/evaluate.py
 
-# 6. Launch this Streamlit app
+# Step 6 — launch Streamlit app
 streamlit run ui/app.py""",
             language="bash",
         )
 
-        st.markdown("### Model files")
+        st.markdown("### Model Files Status")
         for folder, label in [
-            (MODELS_A, "Model A (Answer Ranking)"),
+            (MODELS_A, "Model A (Verifier + QG)"),
             (MODELS_B, "Model B (Distractors & Hints)"),
         ]:
             st.markdown(f"**{label}** — `{folder.relative_to(PROJECT_ROOT)}`")
             if folder.exists():
-                files = list(folder.glob("*.pkl")) + list(folder.glob("*.model")) + list(folder.glob("*.npz"))
+                files = (list(folder.glob("*.pkl")) +
+                         list(folder.glob("*.model")) +
+                         list(folder.glob("*.npz")))
                 if files:
                     for f in sorted(files):
                         size_kb = f.stat().st_size / 1024

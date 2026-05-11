@@ -12,3 +12,5 @@ nltk==3.8.1
 tqdm==4.66.1
 wordcloud==1.9.3
 ipykernel==6.29.0
+rouge-score==0.1.2
+imbalanced-learn==0.11.0
